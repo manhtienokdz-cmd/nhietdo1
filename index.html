@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IoT Nhiệt độ & Độ ẩm</title>
+
+<style>
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #74ebd5, #acb6e5);
+}
+
+/* CARD GLASS */
+.box {
+  text-align: center;
+  padding: 35px;
+  border-radius: 25px;
+  width: 320px;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(15px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  color: #333;
+}
+
+/* TITLE */
+h2 {
+  margin-bottom: 5px;
+  opacity: 0.7;
+}
+
+/* VALUE */
+.value {
+  font-size: 55px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+/* COLOR */
+.cold { color: #00c6ff; }
+.normal { color: #2ecc71; }
+.hot { color: #e74c3c; }
+
+.dry { color: #f39c12; }
+.humid { color: #3498db; }
+.wet { color: #2980b9; }
+
+/* BUTTON */
+.btn {
+  padding: 14px;
+  border: none;
+  border-radius: 50px;
+  font-size: 18px;
+  width: 100%;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.on {
+  background: linear-gradient(45deg, #2ecc71, #27ae60);
+  color: white;
+  box-shadow: 0 0 15px #2ecc71;
+}
+
+.off {
+  background: linear-gradient(45deg, #e74c3c, #c0392b);
+  color: white;
+}
+
+/* STATUS */
+.status {
+  margin-top: 10px;
+  font-weight: bold;
+  font-size: 18px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+  <h2>🌡️ Nhiệt độ</h2>
+  <div id="temp" class="value">--°C</div>
+
+  <h2>💧 Độ ẩm</h2>
+  <div id="humi" class="value">--%</div>
+
+  <button id="btn" class="btn off">BẬT</button>
+  <div id="status" class="status">Đèn: OFF</div>
+</div>
+
+<script src="https://www.unpkg.com/@eohjsc/era-widget@1.1.3/src/index.js"></script>
+
+<script>
+const tempEl = document.getElementById("temp");
+const humiEl = document.getElementById("humi");
+const btn = document.getElementById("btn");
+const statusEl = document.getElementById("status");
+
+let configTemp = null;
+let configHumi = null;
+let configLed = null;
+let actions = [];
+let isOn = 0;
+
+function updateTemp(temp) {
+  tempEl.innerText = temp + "°C";
+  tempEl.classList.remove("cold", "normal", "hot");
+
+  if (temp < 20) tempEl.classList.add("cold");
+  else if (temp <= 30) tempEl.classList.add("normal");
+  else tempEl.classList.add("hot");
+}
+
+function updateHumi(humi) {
+  humiEl.innerText = humi + "%";
+  humiEl.classList.remove("dry", "humid", "wet");
+
+  if (humi < 40) humiEl.classList.add("dry");
+  else if (humi <= 70) humiEl.classList.add("humid");
+  else humiEl.classList.add("wet");
+}
+
+function updateLed(status) {
+  isOn = status;
+
+  if (isOn == 1) {
+    btn.innerText = "TẮT";
+    btn.classList.remove("off");
+    btn.classList.add("on");
+    statusEl.innerText = "Đèn: ON";
+  } else {
+    btn.innerText = "BẬT";
+    btn.classList.remove("on");
+    btn.classList.add("off");
+    statusEl.innerText = "Đèn: OFF";
+  }
+}
+
+const eraWidget = new EraWidget();
+
+eraWidget.init({
+  needRealtimeConfigs: true,
+  needActions: true,
+
+  onConfiguration: (config) => {
+    config.realtime_configs.forEach(c => {
+      if (c.name === "temp") configTemp = c;
+      if (c.name === "humi") configHumi = c;
+      if (c.name === "led") configLed = c;
+    });
+    actions = config.actions;
+  },
+
+  onValues: (values) => {
+    if (!configTemp || !configHumi || !configLed) return;
+
+    const temp = values[configTemp.id]?.value;
+    const humi = values[configHumi.id]?.value;
+    const led  = values[configLed.id]?.value;
+
+    if (temp !== undefined) updateTemp(temp);
+    if (humi !== undefined) updateHumi(humi);
+    if (led !== undefined) updateLed(led);
+  }
+});
+
+btn.addEventListener("click", () => {
+  if (!actions.length) return;
+
+  const actionOn = actions.find(a => a.name.toLowerCase().includes("bật"));
+  const actionOff = actions.find(a => a.name.toLowerCase().includes("tắt"));
+
+  if (isOn == 1) {
+    eraWidget.triggerAction(actionOff?.action, null);
+  } else {
+    eraWidget.triggerAction(actionOn?.action, null);
+  }
+});
+</script>
+
+</body>
+</html>
